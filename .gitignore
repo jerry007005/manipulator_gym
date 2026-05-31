@@ -1,0 +1,11 @@
+.vscode/
+*.egg-info
+build
+__pycache__
+*.py[cod]
+*.so
+*.pyc
+wandb/
+logs/
+log_dir/
+policies/openvla_oft/
