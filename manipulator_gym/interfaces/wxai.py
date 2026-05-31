@@ -35,6 +35,8 @@ class WidowXAIInterface(ManipulatorInterface):
         self.driver.set_arm_modes(trossen_arm.Mode.position)
         self.driver.set_gripper_mode(trossen_arm.Mode.position)
 
+        self.home_pose = [0, np.pi/ 3, np.pi / 6, np.pi / 5, 0, 0, 0]
+
         print("Using camera ids: ", cam_ids)
         self._caps = []
         self._realsense_list = []
@@ -161,8 +163,7 @@ class WidowXAIInterface(ManipulatorInterface):
         """Override function from base class"""
         print("Reset robot interface, reset to home pose?: ", reset_pose)
         if reset_pose:
-            self.move_eef(np.array([0.258325, 0, 0.19065, 0, math.pi / 2, 0]), goal_time=2.0)
-            self.move_gripper(1.0)
+            self.driver.set_all_positions(self.home_pose, goal_time=2.0, blocking=False)
         return True
 
     def _move_eef_relative(self, dx=0, dy=0, dz=0, drx=0, dry=0, drz=0):
