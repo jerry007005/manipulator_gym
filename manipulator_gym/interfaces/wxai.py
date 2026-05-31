@@ -163,6 +163,11 @@ class WidowXAIInterface(ManipulatorInterface):
         """Override function from base class"""
         print("Reset robot interface, reset to home pose?: ", reset_pose)
         if reset_pose:
+            n = self.driver.get_num_joints()
+            # zero out any residual velocity / compliance state before homing
+            self.driver.set_all_modes(trossen_arm.Mode.velocity)
+            self.driver.set_all_velocities([0.0] * n, 0.0, False)
+            self.driver.set_all_modes(trossen_arm.Mode.position)
             self.driver.set_all_positions(self.home_pose, goal_time=2.0, blocking=False)
         return True
 
