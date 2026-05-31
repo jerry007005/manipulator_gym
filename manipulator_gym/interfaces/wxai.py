@@ -16,7 +16,7 @@ import pyrealsense2 as rs
 
 ##############################################################################
 
-ARM_IP = "192.168.1.2" 
+ARM_IP = "192.168.1.4" 
 
 REALSENSE_SERIAL = [838212073584, 409122274608]
 
@@ -39,15 +39,23 @@ class WidowXAIInterface(ManipulatorInterface):
         self._caps = []
         self._realsense_list = []
 
+        import time as _time
+        ctx = rs.context()
         for id in cam_ids:
             if id < 0:
+                serial_number = REALSENSE_SERIAL[abs(id) - 1]
+
+                # hardware reset to recover from bad firmware/USB state
+                for dev in ctx.query_devices():
+                    if dev.get_info(rs.camera_info.serial_number) == str(serial_number):
+                        dev.hardware_reset()
+                        break
+                _time.sleep(3)
+
                 pipeline = rs.pipeline()
                 config = rs.config()
-                serial_number = REALSENSE_SERIAL[abs(id) - 1] 
-
                 config.enable_device(str(serial_number))
                 config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-                config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
                 try:
                     pipeline.start(config)
