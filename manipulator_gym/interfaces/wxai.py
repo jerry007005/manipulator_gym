@@ -138,25 +138,17 @@ class WidowXAIInterface(ManipulatorInterface):
 
     def step_action(self, action: np.ndarray) -> bool:
         """
-        Override function from base class
+        Override function from base class.
+        Joint-space ABSOLUTE control to match the lerobot_trossen data format:
+        action = 7 absolute joint positions [j0, j1, j2, j3, j4, j5, gripper]
+        (arm joints in rad, gripper in m).
         """
-        # move the end effector, Not that dz is up and down, dy is left and right
         print("running action: ", action)
-        action[:6] = np.clip(action[:6], -0.01, 0.01)
-        self._move_eef_relative(
-            dx=action[0],
-            dy=action[1],
-            dz=action[2],
-            drx=action[3],
-            dry=action[4],
-            drz=action[5],
+        self.driver.set_all_positions(
+            list(np.asarray(action, dtype=float)),
+            goal_time=0.1,   # = min_time_to_move_multiplier(3.0) / loop_rate(30)
+            blocking=False,
         )
-        if action[6] > 0.5:
-            print("open gripper", self.gripper_state)
-            self.move_gripper(1.0)
-        else:
-            print("close gripper", self.gripper_state)
-            self.move_gripper(0.0)
         return True
 
     def reset(self, reset_pose=True) -> bool:
@@ -182,37 +174,33 @@ class WidowXAIInterface(ManipulatorInterface):
         self.driver.set_cartesian_positions(
             ArrayDouble6(np.concatenate([goal_xyz, goal_rotvec])),
             interpolation_space=InterpolationSpace.joint,
-            goal_time=0.8
+            goal_time=0.2  # match trossen_arm_driver MIN_TIME_TO_MOVE = 6/30
         )
 
         # time.sleep(0.05)
 
     def move_eef(self, pose: np.ndarray, goal_time: float = 2.0) -> bool:
         """
-        takes in a 6D pose moves the arm to the target pose
+        Joint-space control: move all joints to the target ABSOLUTE positions.
+        `pose` is the 7-dim joint configuration [j0, j1, j2, j3, j4, j5, gripper]
+        (arm joints in rad, gripper in m) -- matches the lerobot_trossen data format.
         """
-        assert len(pose) == 6, "pose must be 6D"
+        assert len(pose) == 7, "joint positions must be 7D (6 arm joints + gripper)"
 
-        goal_xyz = pose[:3]
-        goal_rpy = pose[3:]
-
-        goal_rotvec = rotation.from_euler('xyz', goal_rpy).as_rotvec()
-
-        self.driver.set_cartesian_positions(
-            ArrayDouble6(np.concatenate([goal_xyz, goal_rotvec])),
-            interpolation_space=InterpolationSpace.joint,
-            goal_time=goal_time
+        self.driver.set_all_positions(
+            list(np.asarray(pose, dtype=float)),
+            goal_time=goal_time,
+            blocking=False,
         )
 
-        self._move_eef_relative(0, 0, 0, 0, 0, 0)  # TODO FIx bug in compliance control
-        
         return True
 
     def move_gripper(self, grip_state: float):
+        # non-blocking, short goal_time to match trossen_arm_driver (gripper moved with arm, non-blocking)
         if grip_state > 0:
-            self.driver.set_gripper_position(0.04, goal_time=1.0, blocking=True)
+            self.driver.set_gripper_position(0.04, goal_time=0.2, blocking=False)
         elif grip_state <= 0:
-            self.driver.set_gripper_position(-0.04, goal_time=1.0, blocking=True)
+            self.driver.set_gripper_position(-0.04, goal_time=0.2, blocking=False)
         return True
     
     def _get_ee_pose(self):
