@@ -122,9 +122,8 @@ class ManipulatorEnv(gym.Env):
         trunc = False
         reward = 0.0 if self._reward_fn is None else self._reward_fn(obs)
         start_time = time.time()
-        action[0:3] = np.clip(
-            action[0:3], -self._eef_displacement, self._eef_displacement
-        )
+        # NOTE: joint-space absolute control (lerobot_trossen format) -- do NOT clip,
+        # the action values are absolute joint angles, not cartesian displacements.
         self.manipulator_interface.step_action(action)
 
         if self._done_fn is not None:

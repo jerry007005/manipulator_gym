@@ -37,6 +37,10 @@ class WidowXAIInterface(ManipulatorInterface):
 
         self.home_pose = [0, np.pi/ 3, np.pi / 6, np.pi / 5, 0, 0, 0]
 
+        # time (s) given to reach each step's joint target. lerobot default = 3.0/30 = 0.1
+        # larger -> slower / smoother motion (more lag). tune this if motion is too fast/jerky.
+        self.step_goal_time = 0.3
+
         print("Using camera ids: ", cam_ids)
         self._caps = []
         self._realsense_list = []
@@ -139,14 +143,16 @@ class WidowXAIInterface(ManipulatorInterface):
     def step_action(self, action: np.ndarray) -> bool:
         """
         Override function from base class.
-        Joint-space ABSOLUTE control to match the lerobot_trossen data format:
-        action = 7 absolute joint positions [j0, j1, j2, j3, j4, j5, gripper]
-        (arm joints in rad, gripper in m).
+        Joint-space RELATIVE control: action is a 7-dim joint DELTA
+        [dj0, dj1, dj2, dj3, dj4, dj5, dgripper] (arm joints in rad, gripper in m),
+        i.e. action[t] = state[t+1] - state[t] from the lerobot_trossen RLDS conversion.
         """
         print("running action: ", action)
+        current = np.asarray(self.driver.get_all_positions(), dtype=float)
+        target = current + np.asarray(action, dtype=float)
         self.driver.set_all_positions(
-            list(np.asarray(action, dtype=float)),
-            goal_time=0.1,   # = min_time_to_move_multiplier(3.0) / loop_rate(30)
+            list(target),
+            goal_time=self.step_goal_time,
             blocking=False,
         )
         return True
